@@ -1,22 +1,26 @@
-
-from json.decoder import JSONDecodeError
 import logging
 import logging.config
+from json.decoder import JSONDecodeError
 
 def initialize_logging(logfile_name):
     """
     Initialize logging defaults for Project.
 
-    :param logfile_name: logfile used to the logfile
+    :param logfile_name: files contain logs
     :type logfile_name: string
 
-    :Example from execution module, it will write out to mytest.log
+    :Example: add following to execution module, it will write out to mytest.log
         import logging
         import Loggerimport
 
-        Logger.initialize_logging('mytest.log')
+        logfile_name = 'mytest.log'
+        Logger.initialize_logging(logfile_name)
         log = logging.getLogger('root')
         log.debug("Logging is configured")
+        log.info("Logging is configured for info")
+        log.warning("Logging is configured for warning")
+        log.error("Logging is configured for error")
+        log.critical("Logging is configured for critical")
     """
 
     LOGGING_CONFIG = {
