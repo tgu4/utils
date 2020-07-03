@@ -10,7 +10,7 @@ def initialize_logging(logfile_name):
 
     :Example: add following to execution module, it will write out to mytest.log
         import logging
-        import Loggerimport
+        import Logger
 
         logfile_name = 'mytest.log'
         Logger.initialize_logging(logfile_name)
