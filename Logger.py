@@ -3,15 +3,14 @@ import logging.config
 from json.decoder import JSONDecodeError
 
 def initialize_logging(logfile_name):
-    """
-    Initialize logging defaults for Project.
+    """Initialize logging defaults for Project.
 
     :param logfile_name: files contain logs
     :type logfile_name: string
 
     :Example: add following to execution module, it will write out to mytest.log
         import logging
-        import Loggerimport
+        import Logger
 
         logfile_name = 'mytest.log'
         Logger.initialize_logging(logfile_name)
