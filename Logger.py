@@ -14,6 +14,7 @@ def initialize_logging(logfile_name):
 
         logfile_name = 'mytest.log'
         Logger.initialize_logging(logfile_name)
+        log = logging.Logger
         log = logging.getLogger('root')
         log.debug("Logging is configured")
         log.info("Logging is configured for info")
