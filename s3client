@@ -1,0 +1,92 @@
+#!/home/tgu/bin/venv/bin/python
+
+import json
+import pprint
+
+import boto3
+import botocore
+
+
+# set connection sample code
+def getConnection():
+    # host address ECS runs S3 with SSL/TLS on 9021 and plaintext on 9020.  If you're
+    # behind a load balancer this will usually be remapped to 80/443.
+    host = "https://s3.prod.ecs.com:443"
+    secure = True
+    # Your AWS access key ID is also known in ECS as your object user
+    access_key_id = "AKIACE4401DC3A579D64"
+    # The secret key that belongs to your object user.
+    secret_key = "75LjmFxp5N9kJ2dnPZlNaLY/Q8ovddSNfRuI0z+C"
+    s3 = boto3.client(
+        "s3",
+        aws_access_key_id=access_key_id,
+        aws_secret_access_key=secret_key,
+        use_ssl=secure,
+        endpoint_url=host,
+    )
+    # boto3.client
+    # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#client
+    return s3
+
+
+if __name__ == "__main__":
+    s3 = getConnection()
+    # print(dir(s3))
+    buckets = s3.list_buckets()
+    # print(buckets)
+    for bucket in buckets["Buckets"]:
+        print(bucket)
+        print(bucket["Name"])
+        print("-" * 50)
+        res = s3.list_objects_v2(Bucket=bucket["Name"])
+        print(json.dumps(res, indent=4))
+        print("\n")
+
+    # print(f"deleting with bucket {bucket['Name']}")
+    # response = s3.delete_bucket(Bucket="newtestbucket")
+    # pprint.pprint(response)
+
+    # mpu = s3.list_multipart_uploads(Bucket="newtestbucket")
+    # pprint.pprint(mpu)
+    # all = s3.list_parts(Bucket="newtestbucket",Key="test", UploadId="AQAAAYQ99GZKv69gQsdJSwSi1i0esm8iBm5Tq8k")
+    # pprint.pprint(all)
+    # del_res = s3.complete_multipart_upload(Bucket = "newtestbucket", Key = 'test',
+    # del_res = s3.abort_multipart_upload(Bucket = "newtestbucket", Key = 'test', UploadId = 'AQAAAYQ99GZKv69gQsdJSwSi1i0esm8iBm5Tq8k')
+    # print(del_res)
+    """
+    lfc = {
+        "Rules": [
+            {
+                "AbortIncompleteMultipartUpload": {"DaysAfterInitiation": 1},
+                "ID": "urn:ecs:iam::bcs-unified-testing:user/bcs-unified-testing-iam-users",
+                "Filter": {"Prefix": ""},
+                "Status": "Enabled",
+            }
+        ]
+    }
+    s3.put_bucket_lifecycle_configuration(
+        Bucket="newtestbucket", LifecycleConfiguration=lfc
+    )
+
+    """
+    # lifecycle = s3.get_bucket_lifecycle_configuration(Bucket="newtestbucket")
+    # print(lifecycle)
+
+    # for item in s3.list_multipart_uploads(Bucket="newtestbucket"):
+    #    print(json.dumps(item, indent=4))
+
+    """
+    print("="*50)
+    for obj in bucket.objects.all():
+        print(obj.key)
+    print("="*50)
+    """
+
+    # delete object
+    # response = s3.delete_bucket(Bucket="s3DemoBucket")
+"""
+    response = s3.delete_object(
+        Bucket="s3DemoBucket",
+        Key="s3DemoFileName",
+    )
+"""
