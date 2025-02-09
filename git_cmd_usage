@@ -1,0 +1,114 @@
+#!/bin/bash
+
+cat <<-EOM
+
+1. git checkout master
+   cd ~/bbgithub/storagenetwork/device-manage
+   git fetch upstream               # download from remote upstream master to forked master
+   git reset --hard upstream/master # overwrite all local from remote master just fetched
+   git reset --hard HEAD            # discard all local changes in working directory
+   git reset --hard <commit>        # discard all changes since the commit
+   git reset <commit>               # preserve all changes as unstaged changes
+   git reset --keep <commit>        # preserve uncommitted local changes
+   git revert <commit>              # revert a commit
+   git checkout HEAD <file>         # discard local changes in a file
+
+   # fix mistake
+    git commit -m "modify sub function"
+    git log -p
+    git log -p <file>
+    git blame <file>                # who and when changed hash changed
+
+    git commit --amend -m "Completed sub function"    # change the commit message
+    git commit --amend --no-edit                      # do not change the commit message
+    git push origin master --force
+    git push --tags  # publish tags
+
+   ## Squash your latests commits into one
+   git log --graph --decorate --pretty=oneline --abbrev-commit
+        * df71a27 - (HEAD feature_x) Updated CSS for new elements (4 minutes ago)
+        * ba9dd9a - Added new elements to page design (15 minutes ago)
+        * f392171 - Added new feature X (1 day ago)
+        * d7322aa - (origin/feature_x) Proof of concept for feature X (3 days ago)
+   git rebase -i HEAD~3 #d7322aa is the last commit to squash last three commits in one
+        change:
+        pick f392171 Added new feature X
+        pick ba9dd9a Added new elements to page design
+        pick df71a27 Updated CSS for new elements
+        to:
+        pick f392171 Added new feature X
+        s ba9dd9a Added new elements to page design
+        squash df71a27 Updated CSS for new elements
+
+   git push origin master --force
+	git rebase -i HEAD~4                # squash four commits into one
+
+	git pull upstream master            # update local master from upstream
+	git push origin master
+	git push origin master --force      # force update since local changed from commit
+
+   git history
+   git rebase -i HEAD~4                # squash four commits into one
+   git push origin master --force      #  force push required
+
+2.Check out branch with naming including DRQS#:
+   git checkout -b issue/drqs1234578
+3.Code update, review changes, and commit:
+   git status; git commit -a;  git push origin master
+4. Push the changes back to the branch in your forked repo:
+   git push -u origin issue/drqs12345678
+
+-- GIT flow --
+git clone bbgithub:your-user/repo                   # clone orig repo to local
+git remote add upstream bbgithub:central-org/repo   # setup upstream remote for local
+git remote -v
+git remote show upstream                            # show info about remote upstream
+git pull upstream master                            # pull in upstream master to local
+git checkout -b branch-name                         # create new branch
+git branch                                          # view all branch on local
+git branch -av                                      # view all bracnh on local and remote
+git branch main                                     # switch to branch
+git add file_name                                   # add code changed to staging
+git commit
+git log
+git log --graph --abbrev-commit --decorate
+git push origin main
+git push origin branch-name -f                      # if used git commit -m "comment"
+git checkout master                                 # switch to master branch
+git pull upstream master -r                         # -r mean rebase
+
+git checkout branch-name
+git rebase master
+
+git branch -d branch-name  # delete
+git remote prune origin    # clean up the remote origin branch that is being tracked locally
+git clean -n -f -d         # git clean deletes all your untracked files/directories -n (--dry-run)
+
+git pull upstream master   # update local master from upstream and merge
+git push origin master
+git push -u origin master
+
+
+git restore file           # to revert the change
+
+git status; git commit -a;  git push origin main
+git add .gitignore; git commit .gitignore -m "add gitignore"; git push orgin main
+
+
+-- overwrite local files with remote git pull --
+git fetch                      # download without merge
+git reset --hard origin/master # resets the master branch to what you just fetched.
+
+-- rename master branch to main --
+
+git branch -m master main
+git pull origin main
+git branch -u origin/main main
+
+git push -u origin main         # rename remote master, this will create new branch
+git push origin --delete master # delete old master branch
+
+git branch -rd origin/master    # remove local branch
+git pull origin main
+
+EOM
