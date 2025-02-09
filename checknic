@@ -1,0 +1,68 @@
+#!/bin/bash
+
+usage() {
+
+    cat <<-'EOM'
+
+hostnamectl
+netstat -i |column -t
+lshw -businfo -c net; echo;
+nmcli device status;
+ip -s link|grep -A5 "UP mode";
+ip a|grep -B2 "scope global";
+
+for i in $(ip a|grep "state UP"|cut -d" " -f2|sed "s/://");
+do
+    echo $i;
+    ethtool -i $i |grep -E "driver:|firmware";
+    nmcli device show $i
+    ip addr show $i
+    ethtool $i|grep -E "Speed|Duplex";
+    echo;
+done;
+
+arp -a
+ip neigh
+
+EOM
+
+}
+
+get_netinfo() {
+    HOSTNAMECTL="/bin/hostnamectl"
+    LSHW="/usr/sbin/lshw"
+    NETSTAT="/bin/netstat"
+    NMCLI="/bin/nmcli"
+    IP="/usr/sbin/ip"
+    ETHTOOL="/usr/sbin/ethtool"
+
+    $HOSTNAMECTL
+    echo
+    echo -e "FQDN: $(hostname -f)"
+    echo
+    $NETSTAT -i | column -t
+    echo
+    $LSHW -businfo -c net
+    echo
+    $NMCLI device status
+    echo
+    $IP -s link | grep -A5 "UP mode"
+    echo
+    $IP a | grep -B2 "scope global"
+    echo
+    for i in $($IP a | grep "state UP" | cut -d" " -f2 | sed "s/://"); do
+        echo "$i"
+        $ETHTOOL -i "$i" | grep -E "driver:|firmware"
+        $NMCLI device show "$i"
+        $IP addr show "$i"
+        #$ETHTOOL "$i" | grep -E "Speed|Duplex"
+        echo
+    done
+}
+
+if [ "$(uname -s)" == "Darwin" ]; then
+    usage
+    exit
+else
+    get_netinfo
+fi
