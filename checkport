@@ -1,0 +1,69 @@
+#!/bin/bash
+
+usage() {
+
+    cat <<-'EOM'
+
+nc -v -t -w 2 <ip_address> <port_number>
+nmap <ip_address> -p <port_number>
+
+EOM
+
+}
+if [ "$(uname -s)" == "Darwin" ]; then
+    usage
+    exit
+fi
+
+if [ $# -ne 2 ]; then
+    echo
+    echo Usage: "$0" "<ip or server>" "<port>"
+    echo
+    exit
+fi
+
+if [ "$(which nmap)" != "" ]; then
+    tool=nmap
+elif [ "$(which nc)" != "" ]; then
+    tool=nc
+elif [ "$(which curl)" != "" ]; then
+    tool=curl
+elif [ "$(which telnet)" != "" ]; then
+    tool=telnet
+elif [ -e /dev/tcp ]; then
+    if [ "$(which gtimeout)" != "" ]; then
+        tool=gtimeout
+    elif [ "$(which timeout)" != "" ]; then
+        tool=timeout
+    else
+        tool=devtcp
+    fi
+fi
+
+echo "Using $tool to test access to $1:$2"
+case $tool in
+nmap)
+    nmap "$1" -p "$2"
+    ;;
+nc)
+    nc -v -t -w 2 "$1" "$2"
+    ;;
+curl)
+    curl --connect-timeout 10 http://"$1":"$2"
+    ;;
+telnet)
+    telnet "$1" "$2"
+    ;;
+gtimeout)
+    gtimeout 1 bash -c "</dev/tcp/${1}/${2} && echo Port is open ||
+        echo Port is closed" || echo Connection timeout
+    ;;
+timeout)
+    gtimeout 1 bash -c "</dev/tcp/${1}/${2} && echo Port is open ||
+        echo Port is closed" || echo Connection timeout
+    ;;
+devtcp) bash -c <"/dev/tcp/${1}/${2}" && echo Port is open || echo Port is closed ;;
+*)
+    echo "no tools available to test $1 port $2"
+    ;;
+esac
