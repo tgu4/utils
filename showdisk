@@ -1,0 +1,82 @@
+#!/bin/bash
+
+OS=$(uname -s)
+
+linux_disk() {
+    if [[ -e /bin/lsblk ]]; then
+        printf "%60s\n" | tr ' ' -
+        (lsblk -o NAME,KNAME,TYPE,MOUNTPOINT,SIZE,SERIAL,WWN,MODEL,VENDOR 2>/dev/null ||
+        lsblk -o NAME,KNAME,TYPE,MOUNTPOINT,SIZE) | column -ts $'\t'
+    else
+        echo -e "/bin/lsblk command does not exist"
+        exit
+    fi
+}
+
+typeset -A convertNaa2Dev
+convertNaa2Dev=([30]=0 [31]=1 [32]=2 [33]=3 [34]=4 [35]=5 [36]=6 [37]=7 [38]=8 [39]=9
+[41]=a [42]=b [43]=c [44]=d [45]=e [46]=f)
+
+linux_san(){
+    if command -v -- multipath >/dev/null 2>&1; then
+        multipath -ll |awk '/^mpath/' | tr -d '(),' |
+        while read A B C D E; do
+            if [[ "$D" == "HPE" ]]; then
+                sn=${B:20:5};
+                devid_hex=${B:(-4)}
+                devid_dec=$((0x$devid_hex))
+                prfix_sn="${B:19:1}";
+                array_sn="${prfix_sn}$((0x$sn))"
+                arrayFullName="sn${array_sn}.bloomberg.com"
+                array_name=$(dig TXT $arrayFullName +noall +answer 2>&1|
+                awk '/TXT/ {print $NF}'|tr -d '"'|sed 's/+answer//g'|tr -d '\n')
+                echo -e "$A $B $C $array_name $devid_dec $D $E"
+            elif [[ "$D" == "EMC" ]]; then
+                array_sn=${B:9:12};
+                model=${B:21:2}
+                devid=${B:23}
+                echo $sn
+                if [[ $model == "53" ]]; then
+                    array_mode="PowerMax8000"
+                fi
+                dev_id="";
+                for i in $(echo $devid|fold -w2);do
+                    encode_id=$(echo ${convertNaa2Dev["$i"]})
+                    dev_id+=$encode_id
+                done
+                arrayFullName="sn${array_sn}.bloomberg.com"
+                array_name=$(dig TXT $arrayFullName +noall +answer 2>&1|
+                awk '/TXT/ {print $NF}'|tr -d '"'|sed 's/+answer//g'|tr -d '\n')
+                echo -e "$A $B $C $array_name $array_mode $dev_id $D $E"
+            fi
+        done | column -t
+
+    else
+        echo -e "mutipath not installed"
+        echo -e "run /bin/lsscsi --scsi for naa devs"
+    fi
+}
+
+case "$OS" in
+Linux)
+    linux_disk
+    echo -e "\n"
+    linux_san
+    ;;
+AIX)
+    printf "%50s\n" | tr ' ' -
+    ( [[ -f /usr/symcli/bin/syminq ]] && /usr/symcli/bin/syminq -cache ) ||
+    ( [[ -f /bb/admin/xpinfo ]] && /bb/admin/xpinfo -li )
+    ;;
+SunOS)
+    printf "%50s\n" | tr ' ' -
+    /bin/iostat -En |gawk '/^c/ {print $1}
+                           /^Size/ {print $2}
+                           /^Vendor:/ {print $2}
+                           /^Vendor:/ {printf "%d\n", strtonum( "0x" substr($NF,5,4))}'|
+                           xargs -n4
+    ;;
+*)
+    echo "OS: $OS is not supported"
+    ;;
+esac
