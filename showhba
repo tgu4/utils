@@ -1,0 +1,59 @@
+#!/bin/bash
+
+OS=$(/bin/uname -s)
+
+case "$OS" in
+Linux)
+    echo "FC_HOST     |   PortID   |    WWN             | State      | Speed    "
+    echo "------------+------------+--------------------+------------+----------"
+    for hba in `ls -d /sys/class/fc_host/host*`;do
+    FC_HOST=`basename $hba`
+    PortID=`cat $hba/port_id`
+    wwpn=`cat $hba/port_name|sed 's/0x//g'`
+    state=`cat $hba/port_state`
+    speed=`cat $hba/speed`
+    hba=`cat $hba/symbolic_name`
+    echo "$FC_HOST| $PortID | $wwpn | $state| $speed" |
+    awk 'BEGIN{OFS=FS="|"}{for(i=1;i<=NF;i++){$i=sprintf("%-12s",$i)};print}'
+    done #|sort -k3n,6
+    echo "------------+------------+--------------------+------------+----------"
+    echo -e "\ninitiator to scsi\n"
+    lsscsi -Ht |sed -e 's/fc:0x//g' -e 's/0x.*/ /g'
+    echo -e "\ntarget connections:\n"
+    (lsscsi -tg --size 2>/dev/null || lsscsi -tg) | sed -e 's/fc:0x//g' -e 's/0x.* / /g'
+    echo -e "\ncommand: sg_map -x # show bus,chan,id,lun and type"
+    echo -e \"===================\";
+    echo -e "Reboot history";
+    last reboot
+    echo -e \"===================\";
+    echo \"FCPort in messages:\n\";
+    grep FCPort /var/log/messages
+    echo -e "==================="
+    ;;
+AIX)
+    printf "%-10s %-7s %-7s %-7s %-7s %-s\n" "Host-Port" "WWN" "State" "Speed" "errTx" "errCRC"
+    printf "%50s\n" | tr ' ' -
+    /usr/sbin/lsdev -Ccadapter | awk '/^fcs.*Avail/ {print $1}' | xargs -n1 | while read A; do
+        echo $A $(/bin/fcstat $A |
+        awk -F: '/World Wide Port Name|running|Attention Type|Invalid Tx|Invalid CRC/
+        {print $2}')
+    done
+    ;;
+SunOS)
+    printf "%-10s %-7s %-7s %-7s %-7s %-7s %-s\n" "WWN" "Dev" "Model" "State" "Speed" "errTx" "errCRC"
+    printf "%50s\n" | tr ' ' -
+    /sbin/fcinfo hba-port -l |
+    awk '/Port WWN:|OS Device|Manufacturer|Model|State|Speed:|Invalid Tx|Invalid CRC/'|
+        awk '{print $NF}'|xargs -n8|sed 's/established//g'| sort -r -k5
+    echo
+    echo -e "===================";
+    echo -e "Reboot history";
+    last reboot
+    echo -e "Link error in messages:";
+    grep Link /var/adm/messages|tail -10"
+    echo -e "\n";
+    ;;
+*)
+    echo "OS: $OS is not supported"
+    ;;
+esac
