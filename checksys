@@ -1,0 +1,116 @@
+#!/bin/bash
+
+usage() {
+    cat <<'EOM'
+    This tool used to check linux network status
+
+    Usage:
+    Please provide linux hostname
+
+    Noes:
+    hostnamectl                         # os version and name
+    timedatectl                         # show timezone
+    dmesg -T                            # to see any errors
+    journalctl --since yesterday
+    journalctl -k                       # display kernel message
+    journalctl -g "error" --case-sensitive=false
+    journalctl -b -p err                # display all errors since last boot
+    iostat -p sda                       # to see one disk with cpu, system on disk
+    iostat -d 2 5                       # to see disk info for 5 rounds of every 2s
+    iostat -p sda -d 5 -y               # -y omit the first (stats since boot) report
+    iostat -x
+
+    additional command:
+    iotop -d 5                          # utility for looking at disk I/O
+    ioping /dev/sda1                    # report disk latency
+    atop                                # system performance
+    dstat -tamlr 2 5                    # system performance on all resources
+                                    #rss non-swapped physical memory used in kilobytes
+    ps -eo pid,ppid,cmd,comm,%mem,%cpu,rss --sort=-%mem | head -10
+    ps -eo pid,ppid,cmd,comm,%mem,%cpu,rss --sort=-%cpu | head -10
+    pmap -x -p 8777                     # display memory map of a process
+    pmap -XX -p 8777                     # display memory map of a process
+    ps aux --sort -%mem --cols 120 | head
+    ps aux --sort -%cpu --cols 120 | head
+    ps -aux --sort -rss |head -10   # Resident Set Size phy RAM is utilized
+    ps -aux --sort -vsz |head -10   # Virtual Memory Size
+    sar -u 2 5                          # Shows historical CPU usage data
+    sar -r 2 5                          # Shows historical memory usage data
+    sar -S 2 5                          # Show statistics on swapping
+    sar -n NFS                          # Show NFS performance, actimeo=0 disable cache
+    free -thw                           # show human-readable output
+    free -m | awk 'NR==2{printf "%.2f%%\t\t", $3*100/$2 }'  # memory usage
+
+NOTES:
+reduce glibc tcache size to reduce application memory consumption, for 8.x only
+gdb --batch-silent --eval-command 'print (int)malloc_trim(0)' -p $PID # not recommended
+
+export GLIBC_TUNABLES=glibc.malloc.tcache_count=0:glibc.malloc.trim_threshold=4096
+
+vi
+/usr/lib/systemd/system/gftl.service
+[Service]
+Environment="GLIBC_TUNABLES=glibc.malloc.tcache_count=0:glibc.malloc.trim_threshold=4096"
+
+/usr/lib/systemd/system/gftl.service.d/override.conf
+[Service]
+Environment="GLIBC_TUNABLES=glibc.malloc.tcache_count=0:glibc.malloc.mxfast=0:glibc.malloc.mmap_max=4096"
+
+systemctl daemon-reload
+
+cat /sys/kernel/mm/transparent_hugepage/{defrag,enabled}
+always [madvise] never
+
+EOM
+
+}
+
+get_sysinfo() {
+
+    BRed='\033[1;31m'
+    NC='\e[0m' # No Color
+
+    echo -n -e "${BRed}"
+    echo -e "host info"
+    echo -n -e "${NC}"
+    echo -e "====================="
+    hostnamectl
+    echo
+    echo -n -e "${BRed}"
+    echo -e "CPU & Memory Usage"
+    echo -n -e "${NC}"
+    echo -e "====================="
+    ps aux --sort -%mem --cols 140 | head
+    echo
+    echo -n -e "${BRed}"
+    echo -e "CPU utilization"
+    echo -n -e "${NC}"
+    echo -e "====================="
+    sar -u 2 5
+    echo
+    uptime
+    echo
+    MEMORY=$(free -m | awk 'NR==2{printf "%.2f%%\t\t", $3*100/$2 }')
+    echo "Memory Usage: $MEMORY"
+    free -h
+    echo
+    echo -n -e "${BRed}"
+    echo -e "Total TCP connections"
+    echo -n -e "${NC}"
+    echo -e "========================"
+    wc -l </proc/net/tcp
+    echo
+    echo -n -e "${BRed}"
+    echo -e "System Performance - dstat 2 5"
+    echo -n -e "${NC}"
+    echo -e "==========================="
+    dstat -tamlr 2 5
+    echo
+}
+
+if [ "$(uname -s)" == "Darwin" ]; then
+    usage
+    exit
+else
+    get_sysinfo
+fi
