@@ -1,0 +1,86 @@
+#!/bin/bash
+
+typeset -a convertNaa2Dev
+convertNaa2Dev=([30]=0 [31]=1 [32]=2 [33]=3 [34]=4 [35]=5 [36]=6 [37]=7 [38]=8 [39]=9
+    [41]=a [42]=b [43]=c [44]=d [45]=e [46]=f)
+
+if [ -z "$1" ] || [ $# -eq 0 ] || [[ "$*" =~ '-h' ]]; then
+    cat <<EOM
+    Usage: $0 <NAAdev>
+
+    Example: $0 60000970000197601464533030373734"
+
+    output:
+    Device WWN/NAA                     Array Model              Array SID      Symdev
+    60000970000197601464533030373734   PowerMax8000             197601464      00774
+
+EOM
+    exit
+fi
+
+echo
+printf "%-35s%-20s%-15s%-15s%-8s\n" \
+    "Device WWN/NAA" "ArraySID" "ArrayModel" "ArrayName" "Dev_Id"
+printf "%-35s%-20s%-15s%-15s%-8s" \
+    "--------------" "--------" "----------" "---------" "------"
+
+if [[ ${1:0:1} == 3 ]]; then
+    naa_dev="${1:1}"
+else
+    naa_dev="$1"
+fi
+if [[ ${#naa_dev} -ne 32 ]]; then
+    echo -e "\n$naa_dev is likely not a valid naadev\n"
+    exit
+fi
+# 060e8 HPE VSP array
+if [[ "$naa_dev" =~ "060e8" ]]; then
+    #printf "%-35s%-20s%-15s%-8s\n" "Device WWN/NAA" "ArrayModel" "ArraySID" "DevID"
+    sn=${naa_dev:20:5}
+    devid_hex=${naa_dev:(-4)}
+    devid_dec=$((0x$devid_hex))
+    prfix_sn="${naa_dev:19:1}"
+    model=${naa_dev:8:3}
+    if [[ $model == "008" ]]; then
+        array_mode="XP8"
+    fi
+    array_sn="${prfix_sn}$((0x$sn))"
+    arrayFullName="sn${array_sn}.bloomberg.com"
+    array_name=$(dig TXT "$arrayFullName" +noall +answer 2>&1 |
+        awk '/TXT/ {print $NF}' | tr -d '"' | sed 's/+answer//g' | tr -d '\n')
+    if [[ "$array_name" == "-all-all" ]]; then
+        array_name=""
+    fi
+    printf "%-35s%-20s%-15s%-15s%-8s\n" \
+        "$naa_dev" "$array_sn" "$array_mode" "$array_name" "$devid_dec"
+    #echo -e "$naa_dev $array_sn $array_name $devid_dec"
+# 000097 - Dell EMC
+elif [[ "$naa_dev" =~ "000097" ]]; then
+    #printf "%-35s%-20s%-15s%-8s\n" "Device WWN/NAA" "ArrayModel" "ArraySID" "SymDev"
+    echo
+    array_sn=${naa_dev:8:12}
+    model=${naa_dev:20:2}
+    devid=${naa_dev:22}
+    # echo "$array_sn" "$model" "$devid"
+    if [[ $model == "53" ]]; then
+        array_mode="PowerMax8000"
+    fi
+    dev_id=""
+    for i in $(echo "$devid" | fold -w2); do
+        encode_id="${convertNaa2Dev["$i"]}"
+        dev_id+=$encode_id
+    done
+    arrayFullName="sn${array_sn}"
+    array_name=$(dig TXT "$arrayFullName" +noall +answer 2>&1 |
+        awk '/TXT/ {print $NF}' | tr -d '"' | sed 's/+answer//g' | tr -d '\n')
+    if [[ "$array_name" == "-all-all" ]]; then
+        array_name=""
+    fi
+    printf "%-35s%-20s%-15s%-15s%-8s\n" \
+        "$naa_dev" "$array_sn" "$array_mode" "$array_name" "$dev_id"
+    echo
+    # echo -e "$naa_dev $array_mode $array_sn $dev_id"
+else
+    echo -e "\nUnable to decode $1"
+    echo -e "only Dell PowerMax and HPE XP8 array supported\n"
+fi
